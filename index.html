@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TouchDesigner Course — Don't overcook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* the hub's own world: a cold kitchen at startup, lit only by heat state */
+  --cold:#0e1116;        /* cold ground — nothing cooking */
+  --slab:#161b22;        /* panel / prep surface */
+  --slab-2:#1d242e;      /* lifted panel */
+  --line:#2a3340;        /* hairline */
+  --ash:#8b95a1;         /* muted text */
+  --ash-dim:#5e6975;     /* faint text */
+  --bone:#eef2f6;        /* primary text */
+
+  /* the one honest cross-module concept: COOK STATE, read as heat */
+  --ember:#ff5a36;       /* hot — cooking / live / built */
+  --warm:#ffb02e;        /* warming — drafting / in progress */
+  --cool:#3ea66a;        /* idle / cleared / cached */
+  --frost:#3f6b9e;       /* cold — not started */
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--cold);
+  color:var(--bone);
+  font-family:'Inter',system-ui,sans-serif;
+  font-weight:300;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+
+/* ---------- type roles ---------- */
+.display{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em;line-height:1}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* ---------- ambient heat: a single ember glow, top-right, like a pilot light ---------- */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(900px 520px at 88% -8%, rgba(255,90,54,.10), transparent 62%),
+    radial-gradient(700px 460px at -6% 108%, rgba(62,166,106,.05), transparent 60%);
+}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 5vw}
+
+/* ---------- header / hero ---------- */
+header{padding:9vh 0 6vh}
+.kicker{
+  font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--ember);display:flex;align-items:center;gap:12px;margin-bottom:3.4vh;
+}
+.kicker .pilot{
+  width:9px;height:9px;border-radius:50%;background:var(--ember);
+  box-shadow:0 0 12px var(--ember);animation:pulse 2.6s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 12px var(--ember)}50%{opacity:.55;box-shadow:0 0 4px var(--ember)}}
+h1.hero{
+  font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:-.03em;
+  font-size:clamp(38px,7vw,86px);line-height:.96;max-width:16ch;
+}
+h1.hero .heat{
+  background:linear-gradient(100deg,var(--ember),var(--warm));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.sub{
+  margin-top:3.4vh;max-width:60ch;font-size:clamp(15px,1.7vw,20px);color:var(--ash);line-height:1.6;
+}
+.sub strong{color:var(--bone);font-weight:500}
+
+/* progress strip — real status, read as a row of cook indicators */
+.strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:5vh;align-items:center}
+.legend{
+  font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ash-dim);display:inline-flex;align-items:center;gap:7px;margin-right:6px;
+}
+.legend .d{width:8px;height:8px;border-radius:2px}
+.d.live{background:var(--ember)}
+.d.draft{background:var(--warm)}
+.d.cold{background:var(--frost)}
+
+/* ---------- section label ---------- */
+.sec-label{
+  font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--ash-dim);padding:7vh 0 2.6vh;display:flex;align-items:center;gap:14px;
+}
+.sec-label::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ---------- module grid ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding-bottom:4vh}
+
+.card{
+  position:relative;display:flex;flex-direction:column;
+  background:var(--slab);border:1px solid var(--line);border-radius:14px;
+  padding:24px 24px 22px;text-decoration:none;color:inherit;
+  transition:transform .25s cubic-bezier(.2,.7,.2,1),border-color .25s,background .25s;
+  overflow:hidden;min-height:208px;
+}
+/* heat seeps up from the bottom edge by cook state */
+.card::before{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:3px;opacity:.9;
+}
+.card.live::before{background:linear-gradient(90deg,var(--ember),var(--warm))}
+.card.draft::before{background:linear-gradient(90deg,var(--warm),rgba(255,176,46,.2))}
+.card.cold::before{background:var(--line)}
+
+.card.live{cursor:pointer}
+.card.live:hover{transform:translateY(-4px);border-color:rgba(255,90,54,.5);background:var(--slab-2)}
+.card.live:focus-visible{outline:2px solid var(--ember);outline-offset:3px}
+.card.draft:hover,.card.cold:hover{border-color:var(--line)}
+.card.locked{cursor:default}
+
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.num{
+  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;line-height:1;
+  color:var(--ash-dim);letter-spacing:-.04em;
+}
+.card.live .num{color:var(--bone)}
+
+/* cook indicator — the signature element. heat dot + instrument readout = build status */
+.cook{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+  letter-spacing:.13em;text-transform:uppercase;padding:5px 9px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
+.cook .flame{width:8px;height:8px;border-radius:50%}
+.card.live .cook{border-color:rgba(255,90,54,.4);color:var(--ember)}
+.card.live .cook .flame{background:var(--ember);box-shadow:0 0 8px var(--ember)}
+.card.draft .cook{border-color:rgba(255,176,46,.35);color:var(--warm)}
+.card.draft .cook .flame{background:var(--warm)}
+.card.cold .cook{color:var(--frost)}
+.card.cold .cook .flame{background:var(--frost);opacity:.7}
+
+.card h3{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;letter-spacing:-.01em;line-height:1.12;margin-bottom:5px}
+.metaphor{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--ash-dim);letter-spacing:.04em;margin-bottom:13px}
+.card.live .metaphor{color:var(--warm)}
+.focus{font-size:13.5px;color:var(--ash);line-height:1.5;margin-top:auto}
+
+.go{
+  margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.1em;
+  display:inline-flex;align-items:center;gap:8px;color:var(--ember);opacity:0;transform:translateX(-6px);
+  transition:opacity .25s,transform .25s;
+}
+.card.live:hover .go{opacity:1;transform:translateX(0)}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--line);margin-top:6vh;padding:5vh 0 7vh;color:var(--ash-dim);font-size:13px}
+footer .line{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center}
+footer code{font-family:'JetBrains Mono',monospace;color:var(--ash);font-size:12px}
+footer .principle{font-family:'Space Grotesk',sans-serif;color:var(--ash);font-weight:500;font-size:15px;margin-bottom:2.2vh;letter-spacing:-.01em}
+
+@media(max-width:560px){
+  .grid{grid-template-columns:1fr}
+  header{padding:7vh 0 4vh}
+  .card{min-height:184px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker"><span class="pilot"></span> TouchDesigner · A course in nine modules</div>
+    <h1 class="hero display">Don't <span class="heat">overcook</span>. Make the PC's life easier.</h1>
+    <p class="sub">A course about <strong>understanding the data and where computation belongs</strong> — not which node to drag. Module 0 plants the principle; Modules 1–8 each answer the same question in one data family: <strong>where should this work live, and what is it costing you?</strong></p>
+
+    <div class="strip">
+      <span class="legend"><span class="d live"></span> Live deck</span>
+      <span class="legend"><span class="d draft"></span> Drafting</span>
+      <span class="legend"><span class="d cold"></span> Scoped, not built</span>
+    </div>
+  </header>
+
+  <div class="sec-label">The spine</div>
+
+  <main class="grid" id="grid">
+    <!-- cards injected by script so status/links stay in one editable place -->
+  </main>
+
+  <footer>
+    <div class="principle">Coherence by rhyme, not cross-reference — every module restates the principle in its own world.</div>
+    <div class="line">
+      <span>Source of truth lives in Notion.</span>
+      <span>Decks are self-contained HTML.</span>
+      <span><code>2 live · 7 scoped</code></span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/* Single source of truth for the nav. Update file paths + status here as decks land.
+   status: "live"  -> clickable, opens href
+           "draft" -> drafting, not yet linked
+           "cold"  -> scoped only */
+const MODULES = [
+  { num:"0", title:"The Mental Model", metaphor:"the kitchen", status:"live",  href:"module_0_presentation.html",
+    cook:"Live", focus:"What TD is: dataflow + cooking. Pull-based, dirty-flag driven. Plants the whole principle before a single node." },
+  { num:"1", title:"CHOPs: Thinking in Channels", metaphor:"a channel is a freight train", status:"live", href:"module1_chops_deck.html",
+    cook:"Live", focus:"Signal flow, the cook chain, time vs sample — and when channel count forces you out of CHOP-land." },
+  { num:"2", title:"TOPs and the GPU", metaphor:"metaphor TBD", status:"cold", href:"",
+    cook:"Cold", focus:"Textures as parallel processing, GLSL, transfer cost. The heart of the optimization philosophy." },
+  { num:"3", title:"SOPs / Geometry / 3D", metaphor:"metaphor TBD", status:"cold", href:"",
+    cook:"Cold", focus:"Geometry as data, instancing, the render pipeline. Tight and purposeful — resist the bloat." },
+  { num:"4", title:"POPs: Geometry on the GPU", metaphor:"metaphor TBD", status:"cold", href:"",
+    cook:"Cold", focus:"The SOP wall; the SOP→POP decision mirrors CHOP→TOP; the GPU→CPU readback tax for point data." },
+  { num:"5", title:"DATs, Python & Architecture", metaphor:"metaphor TBD", status:"cold", href:"",
+    cook:"Cold", focus:"Where Python belongs — config, structure, orchestration — vs where it kills you: per frame." },
+  { num:"6", title:"Inputs & the Outside World", metaphor:"DMX masterclass lives here", status:"cold", href:"",
+    cook:"Cold", focus:"Audio, MIDI, OSC, DMX/Art-Net, sensors, NDI. Reactive vs generative as a general principle." },
+  { num:"7", title:"Generative Systems", metaphor:"metaphor TBD", status:"cold", href:"",
+    cook:"Cold", focus:"Noise, feedback, particles, simulation. Systems-with-state, not patches." },
+  { num:"8", title:"Production & Deployment", metaphor:"metaphor TBD", status:"cold", href:"",
+    cook:"Cold", focus:"Profiling, perform mode, networking, redundancy, show conditions. What breaks, and why." },
+];
+
+const grid = document.getElementById('grid');
+MODULES.forEach(m => {
+  const live = m.status === "live";
+  const el = document.createElement(live ? 'a' : 'div');
+  el.className = 'card ' + m.status + (live ? '' : ' locked');
+  if (live) { el.href = m.href; }
+  el.innerHTML = `
+    <div class="card-top">
+      <span class="num">${m.num}</span>
+      <span class="cook"><span class="flame"></span>${m.cook}</span>
+    </div>
+    <h3>${m.title}</h3>
+    <div class="metaphor">${m.metaphor}</div>
+    <p class="focus">${m.focus}</p>
+    ${live ? '<span class="go">Open deck →</span>' : ''}
+  `;
+  grid.appendChild(el);
+});
+</script>
+</body>
+</html>
