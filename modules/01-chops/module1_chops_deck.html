@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 1 — CHOPs: Thinking in Channels</title>
+<style>
+  :root{
+    --ground:#1c2024;
+    --ground-2:#23282d;
+    --panel:#2b3137;
+    --line:#3a424a;
+    --paper:#ece6da;
+    --paper-dim:#9aa3ab;
+    --red:#e2473b;      /* running / dispatched / hot */
+    --green:#3fae6b;    /* cleared / cached / waved through */
+    --amber:#f0a830;    /* live / time-dependent */
+    --steel:#7d8a95;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--ground);
+    color:var(--paper);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    overflow:hidden;
+  }
+  /* ---- type roles ---- */
+  .display{
+    font-family:"Arial Narrow","Helvetica Neue",sans-serif;
+    font-weight:700;
+    letter-spacing:.01em;
+    text-transform:uppercase;
+    line-height:.98;
+  }
+  .mono{font-family:"SFMono-Regular",Menlo,Consolas,monospace;}
+
+  /* ---- deck scaffold ---- */
+  .deck{position:fixed;inset:0;}
+  .slide{
+    position:absolute;inset:0;
+    display:none;
+    flex-direction:column;
+    justify-content:center;
+    padding:6vh 7vw;
+    opacity:0;
+    transition:opacity .35s ease;
+  }
+  .slide.active{display:flex;opacity:1;}
+
+  .eyebrow{
+    font-size:.78rem;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--steel);margin-bottom:1.6rem;display:flex;gap:1rem;align-items:center;
+  }
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red);}
+  h1{font-size:clamp(2.4rem,6vw,5.4rem);margin-bottom:1.2rem;}
+  h2{font-size:clamp(1.7rem,3.6vw,3rem);margin-bottom:1.4rem;}
+  .lede{font-size:clamp(1.05rem,1.6vw,1.4rem);max-width:46ch;color:var(--paper);line-height:1.5;}
+  .lede.dim{color:var(--paper-dim);}
+  p.body{font-size:clamp(1rem,1.4vw,1.25rem);line-height:1.6;max-width:60ch;color:var(--paper-dim);margin-top:.9rem;}
+  .carry{
+    margin-top:2rem;border-left:3px solid var(--amber);
+    padding:.6rem 0 .6rem 1.3rem;font-size:clamp(1.1rem,1.9vw,1.6rem);
+    font-weight:600;color:var(--paper);max-width:48ch;line-height:1.35;
+  }
+  strong{color:var(--paper);font-weight:700;}
+  .red{color:var(--red);} .green{color:var(--green);} .amber{color:var(--amber);}
+
+  /* ---- signature: consist strip ---- */
+  .consist{display:flex;align-items:flex-end;gap:6px;margin:2rem 0 .4rem;flex-wrap:wrap;}
+  .loco{
+    width:64px;height:46px;border-radius:6px 14px 14px 6px;
+    background:linear-gradient(180deg,#444c54,#2b3137);
+    border:1px solid var(--line);position:relative;flex:0 0 auto;
+  }
+  .loco::after{content:"";position:absolute;right:8px;top:10px;width:14px;height:10px;background:var(--amber);border-radius:2px;box-shadow:0 0 8px var(--amber);}
+  .car{
+    width:46px;height:38px;border:1px solid var(--line);border-radius:3px;
+    background:var(--panel);display:flex;align-items:center;justify-content:center;
+    font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.8rem;color:var(--paper);
+    flex:0 0 auto;
+  }
+  .car.lo{height:26px;color:var(--paper-dim);}
+  .car.hi{height:52px;border-color:var(--red);}
+  .consist-label{font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;color:var(--steel);margin-top:.3rem;}
+
+  /* many-cars block (for 800) */
+  .block{display:flex;gap:2px;flex-wrap:wrap;max-width:540px;margin:1.4rem 0 .4rem;}
+  .block .b{width:7px;height:20px;background:var(--steel);opacity:.55;border-radius:1px;}
+  .block.few .b{width:30px;height:30px;background:var(--green);opacity:1;}
+
+  /* ---- translation table ---- */
+  table{border-collapse:collapse;margin-top:1.6rem;width:100%;max-width:720px;}
+  td{border:1px solid var(--line);padding:.6rem .9rem;font-size:clamp(.85rem,1.2vw,1.05rem);}
+  td:first-child{color:var(--amber);width:42%;}
+  td:last-child{color:var(--paper);}
+  tr:first-child td{background:var(--panel);color:var(--steel);text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;}
+
+  /* ---- two-condition / cost rows ---- */
+  .rows{display:flex;flex-direction:column;gap:.8rem;margin-top:1.6rem;max-width:760px;}
+  .row{display:flex;align-items:center;gap:1.2rem;padding:.9rem 1.1rem;border:1px solid var(--line);border-radius:8px;background:var(--ground-2);}
+  .tag{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.8rem;padding:.22rem .6rem;border-radius:4px;white-space:nowrap;flex:0 0 auto;}
+  .tag.hot{background:rgba(226,71,59,.16);color:var(--red);border:1px solid var(--red);}
+  .tag.cold{background:rgba(63,174,107,.14);color:var(--green);border:1px solid var(--green);}
+  .row .txt{font-size:clamp(.92rem,1.3vw,1.15rem);color:var(--paper-dim);}
+
+  .cost{font-family:"Arial Narrow",sans-serif;font-weight:700;text-transform:uppercase;font-size:clamp(1.4rem,3.4vw,2.6rem);margin:1.4rem 0;letter-spacing:.02em;}
+  .cost .x{color:var(--steel);margin:0 .4rem;}
+
+  /* ---- arithmetic readout ---- */
+  .readout{
+    font-family:"SFMono-Regular",Menlo,Consolas,monospace;
+    font-size:clamp(1.3rem,3.2vw,2.6rem);
+    background:var(--ground-2);border:1px solid var(--line);border-radius:10px;
+    padding:1.4rem 1.8rem;margin:1.8rem 0;display:inline-block;color:var(--paper);
+  }
+  .readout .res{color:var(--amber);}
+
+  /* ---- nav ---- */
+  .nav{position:fixed;bottom:18px;right:22px;display:flex;gap:14px;align-items:center;z-index:20;}
+  .nav button{background:var(--panel);color:var(--paper);border:1px solid var(--line);border-radius:6px;width:38px;height:34px;font-size:1rem;cursor:pointer;}
+  .nav button:hover{border-color:var(--amber);}
+  .counter{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.85rem;color:var(--steel);min-width:54px;text-align:right;}
+  .railbar{position:fixed;left:0;right:0;bottom:0;height:4px;background:var(--line);z-index:20;}
+  .railbar .fill{height:100%;background:var(--red);width:0;transition:width .35s ease;box-shadow:0 0 8px var(--red);}
+  .hint{position:fixed;bottom:18px;left:22px;font-size:.72rem;color:var(--steel);letter-spacing:.1em;z-index:20;}
+  @media (prefers-reduced-motion:reduce){.slide{transition:none;}.railbar .fill{transition:none;}}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide active">
+    <div class="eyebrow"><span class="dot"></span> Module 1 · TouchDesigner Course</div>
+    <h1 class="display">A channel is a<br>freight train.</h1>
+    <p class="lede">CHOPs — thinking in channels. Cars are samples. Weight is value. Cities are operators. Today we make "where the work happens, and what it costs" something you can watch roll down the track.</p>
+    <div class="consist">
+      <div class="loco"></div>
+      <div class="car">.5</div><div class="car lo">.2</div><div class="car hi">.9</div><div class="car">.4</div>
+    </div>
+    <div class="consist-label">one channel · four samples</div>
+  </section>
+
+  <!-- 2 THE MODELS WE START WITH -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> Where we start</div>
+    <h2 class="display">The model most of us start with</h2>
+    <p class="body">Most of us met CHOPs as "the audio and number nodes" and wired them by feel — LFO into a parameter, a Math to scale it, a Lag to smooth it. That intuition ships real shows. It carries you a long way.</p>
+    <p class="body">It just doesn't tell you <em>when CHOPs are the right vehicle and when they'll sink your frame rate</em>. That part usually gets passed around as folklore. Here's the picture underneath it instead.</p>
+  </section>
+
+  <!-- 3 IT'S JUST X -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> It's just X · slot 1</div>
+    <h2 class="display">It's just a train of<br>numbered cars</h2>
+    <div class="consist">
+      <div class="loco"></div>
+      <div class="car">.1</div><div class="car lo">.0</div><div class="car hi">.8</div><div class="car">.3</div><div class="car lo">.2</div><div class="car">.6</div>
+    </div>
+    <div class="consist-label">car = sample · car weight = value</div>
+    <p class="body">A <strong>channel</strong> is a freight train. It runs a route made of <strong>cities</strong> — and every city is an <strong>operator</strong>. Each city does <em>one operation</em> to every car as the train passes.</p>
+    <div class="carry">Every CHOP is a city that does one operation to a train of cars.</div>
+  </section>
+
+  <!-- 4 TRANSLATION TABLE -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> Translation</div>
+    <h2 class="display">Rail → TD</h2>
+    <table>
+      <tr><td>Freight rail</td><td>TouchDesigner</td></tr>
+      <tr><td>A train</td><td>A channel</td></tr>
+      <tr><td>A car / its weight</td><td>A sample / its value</td></tr>
+      <tr><td>A city on the route</td><td>An operator (a CHOP)</td></tr>
+      <tr><td>What the city does</td><td>The operation — Math, Filter, Merge…</td></tr>
+      <tr><td>The single track</td><td>One CPU thread</td></tr>
+      <tr><td>The platform — one frame wide</td><td>The current time-slice</td></tr>
+      <tr><td>Dispatch from down the line</td><td>A pull (downstream needs data)</td></tr>
+    </table>
+  </section>
+
+  <!-- 5 SLOT 2 — RUNS WHEN CALLED -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span> The core · slot 2</div>
+    <h2 class="display">The train runs when<br>it's <span class="amber">called</span> — not on a timetable</h2>
+    <p class="body">A train sits in the yard until the <strong>destination down the line dispatches for it</strong>: "send me the current cargo." The order travels <em>up</em> the route; the train runs <em>down</em> it. A spur nobody dispatched to stays cold — parked cars, costing nothing.</p>
+    <div class="rows">
+      <div class="row"><span class="tag hot">re-haul</span><span class="txt">Dispatched <strong>AND</strong> something upstream changed → the route actually re-runs, cars re-weighed.</span></div>
+      <div class="row"><span class="tag cold">waved through</span><span class="txt">Dispatched but cargo unchanged → the city waves through what's already staged on the platform. No work.</span></div>
+    </div>
+  </section>
+
+  <!-- 6 THE BILL -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span> The core · slot 2</div>
+    <h2 class="display">What a run costs</h2>
+    <p class="body">Every operation happens <strong>per car, every time the train runs.</strong> So the whole bill is three numbers multiplied together:</p>
+    <div class="cost"><span class="red">cars</span><span class="x">×</span><span class="amber">cities</span><span class="x">×</span><span class="green">how often</span></div>
+    <div class="rows">
+      <div class="row"><span class="tag cold">free</span><span class="txt">4 cars · 10 cities · dispatched once when you turn a knob.</span></div>
+      <div class="row"><span class="tag cold">fine</span><span class="txt">4 cars · 10 cities · 60×/sec because one city is live. Still nothing.</span></div>
+      <div class="row"><span class="tag hot">bites</span><span class="txt">20,000 cars · 10 cities · 60×/sec → the yard never stops.</span></div>
+    </div>
+    <div class="carry">Don't overcook. Make the PC's life easier.</div>
+  </section>
+
+  <!-- 7 SINGLE TRACK -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span> The core · slot 2</div>
+    <h2 class="display">One track. One train<br>at a time.</h2>
+    <p class="body">There is a single track. One train runs it at a time, car by car, in order — no parallel lines. That's TD's single-threaded CPU world.</p>
+    <p class="body">Rail is wonderful for a sensible consist on a clear track. It <strong>does not become an airline by adding cars.</strong> When the cargo gets huge, the answer is never "a longer train."</p>
+  </section>
+
+  <!-- 8 SLOT 3 — RIGHT VS TRAP -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> Right way vs the trap · slot 3</div>
+    <h2 class="display">Keep CHOPs doing<br>CHOP-shaped work</h2>
+    <div class="rows">
+      <div class="row"><span class="tag cold">right</span><span class="txt">Per-fixture, per-parameter, per-control values — dozens to a few hundred cars. Master dimmer, rig intensities, smoothing, audio bands → parameters. Rail is built for exactly this.</span></div>
+      <div class="row"><span class="tag hot">trap</span><span class="txt">Reaching for CHOPs because they're familiar, then pushing per-pixel / per-point data through them — thousands of cars, re-hauled every frame, on one track.</span></div>
+    </div>
+    <div class="carry">When a chain gets heavy, don't count nodes — count cars.</div>
+  </section>
+
+  <!-- 9 TIMELINE VS TIMESLICE -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> Conceptual precision</div>
+    <h2 class="display">Timeline vs time-slice</h2>
+    <p class="body"><strong class="green">Timeline channel:</strong> every car of the journey is laid along the track ahead. The whole trip exists at once — stand anywhere on the route and look at that car. (Scrub to any frame.)</p>
+    <p class="body"><strong class="amber">Time-sliced channel:</strong> no track laid ahead. Cars exist only as they cross the frame-wide platform, in blocks, then they're gone unless an operation stored them.</p>
+    <div class="carry">A time-slice is <span class="red">not one sample</span>. It's every sample that fell within this frame's window.</div>
+  </section>
+
+  <!-- 10 AUDIO — TWO CLOCKS -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> The worked case · audio</div>
+    <h2 class="display">Audio: two clocks,<br>not one</h2>
+    <p class="body">Three numbers all sound like "the audio" and they measure different things. Name them apart and the fog clears.</p>
+    <div class="rows">
+      <div class="row"><span class="tag" style="background:rgba(125,138,149,.18);color:var(--steel);border:1px solid var(--steel)">cargo</span><span class="txt">The audio line delivers <strong>48000 cars per second</strong> — its sample rate. Nothing to do with TD.</span></div>
+      <div class="row"><span class="tag" style="background:rgba(240,168,48,.16);color:var(--amber);border:1px solid var(--amber)">pickup</span><span class="txt">TD opens the platform <strong>60 times per second</strong> — its frame rate. Nothing to do with the audio.</span></div>
+    </div>
+    <p class="body">Time-slicing is just the <strong>gearbox</strong> between the two clocks.</p>
+  </section>
+
+  <!-- 11 THE ARITHMETIC -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> The worked case · audio</div>
+    <h2 class="display">Do the arithmetic<br>out loud</h2>
+    <div class="readout">48000&nbsp;cars/sec&nbsp;÷&nbsp;60&nbsp;frames/sec&nbsp;≈&nbsp;<span class="res">800&nbsp;cars/frame</span></div>
+    <div class="block">
+      <!-- represent ~800 as a dense block -->
+      <span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span>
+    </div>
+    <div class="consist-label">~800 raw samples land in every frame's slice</div>
+    <p class="body">That's the whole mystery. Drop to 30 fps and the platform opens half as often → ~1600 cars per slice. Cars-per-second is fixed by the source; cars-per-frame is just that divided by how often the window opened.</p>
+  </section>
+
+  <!-- 12 FFT TRANSFORM -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> The worked case · audio</div>
+    <h2 class="display">FFT is a different<br>kind of operation</h2>
+    <p class="body">Every city so far reweighed cars <strong>in place</strong>: 800 in, 800 out, same count, new weights — working <em>along</em> the train, in the <strong class="amber">time domain</strong> (a car = loudness at a successive instant).</p>
+    <p class="body">An <strong>FFT (Audio Spectrum CHOP)</strong> melts the whole block down and recasts it as a <em>different train</em> — cars are now <strong class="green">frequency bands</strong>. Ask for 256 bands → 256 cars out, not 800. The car count changed <em>and</em> what a car means changed.</p>
+    <div class="carry">Time domain: cars are moments. Frequency domain: cars are pitch buckets. FFT <span class="red">transforms</span> one into the other.</div>
+  </section>
+
+  <!-- 13 REDUCTION / COST TIE-IN -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span> Why it's a cost decision</div>
+    <h2 class="display">FFT is also a<br><span class="green">reduction</span></h2>
+    <p class="body">You do <strong>not</strong> want to haul ~800 raw audio cars per frame into your control logic — that's airline cargo back on the rails.</p>
+    <div class="consist" style="align-items:center;gap:18px;">
+      <div class="block" style="margin:0;max-width:200px;">
+        <span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span>
+      </div>
+      <span class="display" style="font-size:2rem;color:var(--steel)">→</span>
+      <div class="block few" style="margin:0;">
+        <span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span><span class="b"></span>
+      </div>
+    </div>
+    <div class="consist-label">800 time-domain cars → the 8 bands you actually use</div>
+    <div class="carry">Get the audio, reduce it to the few bands you need immediately, then route those.</div>
+  </section>
+
+  <!-- 14 EXERCISE -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> Hands-on · slot 4</div>
+    <h2 class="display">Watch the cargo move</h2>
+    <p class="body">A reflex, not a recipe: <strong>when it gets heavy, count the cars.</strong></p>
+    <div class="rows">
+      <div class="row"><span class="tag cold">1</span><span class="txt">Constant → Math → Null. Cook-time readout on. Costs essentially nothing.</span></div>
+      <div class="row"><span class="tag amber" style="background:rgba(240,168,48,.16);color:var(--amber);border:1px solid var(--amber)">2</span><span class="txt">Make one city live (absTime / LFO). Same chain now runs every frame — cheap, but <em>always</em> running.</span></div>
+      <div class="row"><span class="tag hot">3</span><span class="txt">Audio Device In → raw block of ~800 cars refilling each frame. Add Audio Spectrum @ 8 bands → 800 becomes 8. Compare cook times.</span></div>
+    </div>
+    <p class="body">Same audio. 800 cars of raw time-domain cargo, or 8 cars of frequency cargo. Counting cars told you which one to route to your lights.</p>
+  </section>
+
+  <!-- 15 CLOSE -->
+  <section class="slide">
+    <div class="eyebrow"><span class="dot"></span> Carry it out the door</div>
+    <h1 class="display">Don't overcook.<br>Make the PC's<br>life easier.</h1>
+    <p class="lede dim">When the cargo stops being a few hundred control values and becomes thousands of identical pixels, rail is the wrong vehicle. The next family is built for exactly that load.</p>
+    <div class="consist">
+      <div class="loco"></div>
+      <div class="car">.5</div><div class="car lo">.2</div><div class="car hi">.9</div><div class="car">.4</div>
+    </div>
+    <div class="consist-label">Module 1 · CHOPs · a channel is a freight train</div>
+  </section>
+
+</div>
+
+<div class="railbar"><div class="fill" id="fill"></div></div>
+<div class="hint">← → or space to advance</div>
+<div class="nav">
+  <button id="prev" aria-label="Previous slide">←</button>
+  <span class="counter" id="counter">1 / 15</span>
+  <button id="next" aria-label="Next slide">→</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  const fill=document.getElementById('fill');
+  const counter=document.getElementById('counter');
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    fill.style.width=((i)/(slides.length-1)*100)+'%';
+    counter.textContent=(i+1)+' / '+slides.length;
+  }
+  document.getElementById('next').onclick=()=>show(i+1);
+  document.getElementById('prev').onclick=()=>show(i-1);
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();show(i+1);}
+    if(e.key==='ArrowLeft'){show(i-1);}
+    if(e.key==='Home'){show(0);}
+    if(e.key==='End'){show(slides.length-1);}
+  });
+  show(0);
+</script>
+</body>
+</html>
